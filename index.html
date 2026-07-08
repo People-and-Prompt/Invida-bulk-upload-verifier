@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>People &amp; Prompt Labs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F7EDE2;
+      --panel: #FFFCF7;
+      --text: #1B263B;
+      --muted: #5F6874;
+      --border: #D8D0C6;
+      --stone: #E5E0D8;
+      --accent: #D66853;
+      --accent-dark: #B94E3C;
+      --sage: #84A59D;
+      --shadow: 0 12px 30px rgba(27, 38, 59, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Roboto", "Open Sans", Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 20px 56px;
+    }
+
+    .brand-lockup {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 34px;
+    }
+
+    .brand-logo {
+      display: block;
+      width: 138px;
+      height: auto;
+    }
+
+    .brand-wordmark {
+      font-family: "Lora", Georgia, serif;
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .hero {
+      max-width: 760px;
+      margin-bottom: 30px;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      font-family: "Lora", Georgia, serif;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: clamp(34px, 5vw, 56px);
+      line-height: 1.08;
+    }
+
+    .intro {
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 700px;
+    }
+
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .tool-card {
+      display: flex;
+      min-height: 230px;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 22px;
+      color: inherit;
+      text-decoration: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .tool-card:hover,
+    .tool-card:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--sage);
+      box-shadow: 0 16px 34px rgba(27, 38, 59, 0.13);
+      outline: none;
+    }
+
+    .tool-card h2 {
+      margin-bottom: 8px;
+      font-size: 24px;
+      line-height: 1.18;
+    }
+
+    .tool-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      color: var(--text);
+      background: var(--stone);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .card-footer {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent-dark);
+      font-weight: 700;
+    }
+
+    .disclaimer {
+      margin-top: 28px;
+      padding: 16px 18px;
+      background: var(--stone);
+      border-left: 5px solid var(--sage);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .disclaimer p {
+      margin: 0;
+    }
+
+    @media (max-width: 680px) {
+      main {
+        padding: 28px 14px 42px;
+      }
+
+      .brand-lockup {
+        margin-bottom: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand-lockup" aria-label="People and Prompt">
+        <img class="brand-logo" alt="People and Prompt" src="data:image/png;base64,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">
+        <span class="brand-wordmark">People &amp; Prompt</span>
+      </div>
+      <div class="hero">
+        <h1>Labs</h1>
+        <p class="intro">
+          A small collection of practical browser-based utilities. Each tool is designed to make a specific operational task clearer, safer, or easier to check.
+        </p>
+      </div>
+    </header>
+
+    <section aria-labelledby="utilities-title">
+      <h2 id="utilities-title">Utilities</h2>
+      <div class="tools">
+        <a class="tool-card" href="/Invida-Upload-Validator/index.html">
+          <div>
+            <h2>Utility / Invida Bulk Upload Validator</h2>
+            <p>
+              Check Excel workbooks before vendor upload, including worksheet selection, allowed headers, GUID checks, list values, merged cells, hidden sheets, and formatting warnings.
+            </p>
+            <div class="tag-row" aria-label="Tool tags">
+              <span class="tag">Excel</span>
+              <span class="tag">Browser-only</span>
+              <span class="tag">Validation</span>
+            </div>
+          </div>
+          <span class="card-footer">Open utility <span aria-hidden="true">-&gt;</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="disclaimer" aria-label="Disclaimer">
+      <p>
+        These tools are co-created by People and AI. They are intended to support checking and decision-making, not replace human review, and may not be 100% accurate.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Utility / Invida Bulk Upload Validator allowed headers
+# Format:
+# Header Name | type=text
+# Header Name | type=list | options=Option 1; Option 2
+# Header Name | type=guid | required=true
+#
+# Supported types: text, list, guid, number, integer, date
+
+GUID | type=guid | required=true
+Space Name | type=text
+Space Type | type=list | options=Office; Meeting Room; Teaching Space; Storage; Circulation; Other
+Occupancy Status | type=list | options=Occupied; Vacant; Shared; Temporarily Unavailable
+Building | type=text
+Floor | type=text
+Department | type=text
+Capacity | type=number
+Notes | type=text
