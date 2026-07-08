@@ -1,0 +1,1100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Utility / Invida Bulk Upload Validator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #F7EDE2;
+      --panel: #FFFCF7;
+      --text: #1B263B;
+      --muted: #5F6874;
+      --border: #D8D0C6;
+      --stone: #E5E0D8;
+      --accent: #D66853;
+      --accent-dark: #B94E3C;
+      --sage: #84A59D;
+      --pass-bg: #E9F1EC;
+      --pass-text: #315F52;
+      --fail-bg: #F8E5DE;
+      --fail-text: #A33F2F;
+      --warn-bg: #F7F0DA;
+      --warn-text: #785D1D;
+      --shadow: 0 12px 30px rgba(27, 38, 59, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Roboto", "Open Sans", Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .topbar {
+      margin-bottom: 20px;
+    }
+
+    .brand-lockup {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .brand-logo {
+      display: block;
+      width: 138px;
+      height: auto;
+    }
+
+    .brand-wordmark {
+      color: var(--text);
+      font-family: "Lora", Georgia, serif;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-family: "Lora", Georgia, serif;
+      font-size: clamp(30px, 4vw, 44px);
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .instructions {
+      max-width: 780px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-top: 18px;
+    }
+
+    .upload-row {
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) minmax(180px, 0.8fr) minmax(200px, 1fr) auto auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    input[type="file"],
+    input[type="text"] {
+      width: 100%;
+      min-height: 42px;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fffaf3;
+      color: var(--text);
+    }
+
+    button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      letter-spacing: 0;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--accent-dark);
+    }
+
+    button:disabled {
+      background: #B8B0A8;
+      cursor: not-allowed;
+    }
+
+    .secondary {
+      background: var(--text);
+    }
+
+    .secondary:hover:not(:disabled) {
+      background: #101827;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      min-width: 92px;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .status-pass {
+      background: var(--pass-bg);
+      color: var(--pass-text);
+      border: 1px solid var(--sage);
+    }
+
+    .status-fail {
+      background: var(--fail-bg);
+      color: var(--fail-text);
+      border: 1px solid #f5b5b5;
+    }
+
+    .status-ready {
+      background: var(--stone);
+      color: var(--text);
+      border: 1px solid #CFC7BC;
+    }
+
+    .summary-text {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .count-pill {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #fffaf3;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .count-pill.error {
+      color: var(--fail-text);
+      border-color: #f3b8b8;
+      background: var(--fail-bg);
+    }
+
+    .count-pill.warning {
+      color: var(--warn-text);
+      border-color: #f1d58f;
+      background: var(--warn-bg);
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: "Lora", Georgia, serif;
+      font-size: 19px;
+    }
+
+    .empty-state {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .issue-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .issue-card {
+      border-left: 5px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      background: #fffaf3;
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .issue-card.error {
+      border-left-color: var(--fail-text);
+      background: var(--fail-bg);
+    }
+
+    .issue-card.warning {
+      border-left-color: var(--sage);
+      background: var(--warn-bg);
+    }
+
+    .issue-card strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .issue-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .small-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .disclaimer {
+      border-left: 5px solid var(--sage);
+      background: var(--stone);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .disclaimer p {
+      margin: 0;
+    }
+
+    @media (max-width: 760px) {
+      main {
+        padding: 22px 12px 36px;
+      }
+
+      .upload-row,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <div class="brand-lockup" aria-label="People and Prompt">
+        <img class="brand-logo" alt="People and Prompt" src="data:image/png;base64,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">
+        <span class="brand-wordmark">People &amp; Prompt</span>
+      </div>
+      <h1>Utility / Invida Bulk Upload Validator</h1>
+      <p class="instructions">
+        Check the spreadsheet before it is sent for upload. Select the workbook and, if needed, a header config text file.
+        The file is read in this browser only. It is not uploaded anywhere.
+      </p>
+    </div>
+
+    <section class="panel" aria-labelledby="upload-title">
+      <h2 id="upload-title">Workbook</h2>
+      <div class="upload-row">
+        <div>
+          <label for="fileInput">Excel file (.xlsx)</label>
+          <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </div>
+        <div>
+          <label for="sheetNameInput">Worksheet name</label>
+          <input id="sheetNameInput" type="text" value="FILLED BY PSD" placeholder="Leave blank for first worksheet">
+        </div>
+        <div>
+          <label for="configInput">Header config file (.txt)</label>
+          <input id="configInput" type="file" accept=".txt,text/plain">
+        </div>
+        <button id="runButton" type="button">Run checks</button>
+        <button id="downloadButton" class="secondary" type="button" disabled>Download report CSV</button>
+      </div>
+      <p class="small-note" id="fileNote">No file selected.</p>
+      <p class="small-note" id="configNote">No config selected. The built-in header list will be used.</p>
+    </section>
+
+    <section class="panel" aria-live="polite" aria-labelledby="summary-title">
+      <div class="summary">
+        <div id="statusBadge" class="status-badge status-ready">Ready</div>
+        <div>
+          <h2 id="summary-title">Validation summary</h2>
+          <div id="summaryText" class="summary-text">Choose a workbook and run checks to see the result.</div>
+          <div class="counts">
+            <span class="count-pill error"><span id="errorCount">0</span> Errors</span>
+            <span class="count-pill warning"><span id="warningCount">0</span> Warnings</span>
+            <span class="count-pill"><span id="issueCount">0</span> Total issues</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="errors-title">
+      <div class="section-title">
+        <h2 id="errors-title">Errors To Fix</h2>
+      </div>
+      <div id="errorsList" class="issue-list">
+        <p class="empty-state">No errors reported yet.</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="warnings-title">
+      <div class="section-title">
+        <h2 id="warnings-title">Warnings To Review</h2>
+      </div>
+      <div id="warningsList" class="issue-list">
+        <p class="empty-state">No warnings reported yet.</p>
+      </div>
+    </section>
+
+    <section class="panel disclaimer" aria-label="Disclaimer">
+      <p>
+        This tool has been co-created by People and AI. It is intended to support checking, not replace human review, and may not be 100% accurate.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    /*
+      Validation rule settings
+      Change the constants in this section when the vendor upload template changes.
+      DEFAULT_WORKSHEET_NAME sets the worksheet name shown when the tool opens.
+      Users can change it in the worksheet name box. Leave that box blank to use
+      the first worksheet in the workbook.
+      Header checks can also be changed without editing this file by uploading a .txt
+      config file. Use one allowed column header per line, optionally followed by
+      pipe-separated settings:
+      Header Name | type=text
+      Space Type | type=list | options=Office; Meeting Room; Storage
+      GUID | type=guid | required=true
+      Blank lines and lines starting with # are ignored.
+    */
+    const DEFAULT_WORKSHEET_NAME = "FILLED BY PSD";
+    const DEFAULT_FIELD_CONFIGS = [
+      { name: "GUID", type: "guid", required: true },
+      { name: "Space Name", type: "text" },
+      { name: "Space Type", type: "list", options: ["Office", "Meeting Room", "Teaching Space", "Storage", "Circulation", "Other"] },
+      { name: "Occupancy Status", type: "list", options: ["Occupied", "Vacant", "Shared", "Temporarily Unavailable"] },
+      { name: "Building", type: "text" },
+      { name: "Floor", type: "text" },
+      { name: "Department", type: "text" },
+      { name: "Capacity", type: "number" },
+      { name: "Notes", type: "text" }
+    ];
+    const REQUIRED_COLUMN_NAMES = DEFAULT_FIELD_CONFIGS.filter((field) => field.required).map((field) => field.name);
+    const DEFAULT_VALID_COLUMN_HEADERS = DEFAULT_FIELD_CONFIGS.map((field) => field.name);
+    const SPACE_ID_COLUMN_NAME = "GUID";
+    const STRIKETHROUGH_SEVERITY = "Warning"; // Change to "Error" if strikethrough text should block upload.
+
+    const fileInput = document.getElementById("fileInput");
+    const sheetNameInput = document.getElementById("sheetNameInput");
+    const configInput = document.getElementById("configInput");
+    const fileNote = document.getElementById("fileNote");
+    const configNote = document.getElementById("configNote");
+    const runButton = document.getElementById("runButton");
+    const downloadButton = document.getElementById("downloadButton");
+    const statusBadge = document.getElementById("statusBadge");
+    const summaryText = document.getElementById("summaryText");
+    const errorCount = document.getElementById("errorCount");
+    const warningCount = document.getElementById("warningCount");
+    const issueCount = document.getElementById("issueCount");
+    const errorsList = document.getElementById("errorsList");
+    const warningsList = document.getElementById("warningsList");
+
+    let latestIssues = [];
+
+    sheetNameInput.value = DEFAULT_WORKSHEET_NAME;
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      fileNote.textContent = file ? `Selected: ${file.name}` : "No file selected.";
+    });
+
+    configInput.addEventListener("change", () => {
+      const file = configInput.files[0];
+      configNote.textContent = file ? `Header config selected: ${file.name}` : "No config selected. The built-in header list will be used.";
+    });
+
+    runButton.addEventListener("click", runChecks);
+    downloadButton.addEventListener("click", downloadCsvReport);
+
+    async function runChecks() {
+      const file = fileInput.files[0];
+      const configFile = configInput.files[0];
+      const requestedSheetName = normalizeValue(sheetNameInput.value);
+      latestIssues = [];
+
+      if (!file) {
+        latestIssues.push(makeIssue("Error", "No file selected", "", "", "", "", "No Excel file has been selected.", "Choose a .xlsx file, then run the checks again."));
+        renderResults(latestIssues, "");
+        return;
+      }
+
+      if (!isXlsxFile(file)) {
+        latestIssues.push(makeIssue("Error", "Wrong file type", "", "", "", "", "The selected file is not an .xlsx workbook.", "Save or export the spreadsheet as .xlsx, then select it again."));
+        renderResults(latestIssues, "");
+        return;
+      }
+
+      if (configFile && !isTextFile(configFile)) {
+        latestIssues.push(makeIssue("Error", "Wrong config file type", "", "", "", "", "The selected header config file is not a .txt file.", "Choose a plain text file with one allowed column header per line."));
+        renderResults(latestIssues, "");
+        return;
+      }
+
+      let headerConfig = createDefaultHeaderConfig();
+      if (configFile) {
+        try {
+          headerConfig = parseHeaderConfig(await readTextFile(configFile));
+        } catch (error) {
+          latestIssues.push(makeIssue("Error", "Config read error", "", "", "", "", "The header config file could not be read by the browser.", "Save the config as a plain .txt file and try again."));
+          renderResults(latestIssues, "");
+          console.error(error);
+          return;
+        }
+
+        if (headerConfig.headers.length === 0) {
+          latestIssues.push(makeIssue("Error", "Empty header config", "", "", "", "", "The header config file does not contain any allowed column names.", "Add one allowed column header per line."));
+          renderResults(latestIssues, "");
+          return;
+        }
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: "array", cellFormula: true, cellDates: false, cellStyles: true });
+          latestIssues = [
+            ...checkHeaderConfig(headerConfig),
+            ...validateWorkbook(workbook, headerConfig, requestedSheetName)
+          ];
+          const sheetName = getTargetSheetName(workbook, requestedSheetName);
+          renderResults(latestIssues, sheetName || "");
+        } catch (error) {
+          latestIssues = [
+            makeIssue("Error", "Workbook read error", "", "", "", "", "The workbook could not be read by the browser.", "Confirm the file opens in Excel, save a fresh .xlsx copy, and try again.")
+          ];
+          renderResults(latestIssues, "");
+          console.error(error);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function validateWorkbook(workbook, headerConfig, requestedSheetName) {
+      const issues = [];
+      const sheetName = getTargetSheetName(workbook, requestedSheetName);
+
+      issues.push(...checkHiddenSheets(workbook));
+
+      if (requestedSheetName && !workbook.SheetNames.includes(requestedSheetName)) {
+        issues.push(makeIssue("Error", "Missing required worksheet", requestedSheetName, "", "", "", `Worksheet "${requestedSheetName}" was not found.`, "Check the worksheet name typed into the tool or rename the worksheet in Excel."));
+        return issues;
+      }
+
+      if (!sheetName) {
+        issues.push(makeIssue("Error", "Missing worksheet", "", "", "", "", "The workbook does not contain any worksheets.", "Add the upload worksheet and try again."));
+        return issues;
+      }
+
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", blankrows: true, raw: false });
+      const merges = worksheet["!merges"] || [];
+      const headerRow = rows[0] || [];
+      const normalizedHeaders = headerRow.map((value) => normalizeHeader(value));
+      const headerIndex = buildHeaderIndex(normalizedHeaders);
+
+      issues.push(...checkMergedCells(merges, sheetName, normalizedHeaders));
+      issues.push(...checkDuplicateHeaders(headerRow, sheetName));
+      issues.push(...checkColumns(normalizedHeaders, sheetName, headerConfig));
+      issues.push(...checkFormulaCells(worksheet, sheetName, normalizedHeaders));
+      issues.push(...checkStrikethroughCells(worksheet, sheetName, normalizedHeaders, headerIndex, rows));
+
+      for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+        const row = rows[rowIndex] || [];
+        const excelRowNumber = rowIndex + 1;
+        const spaceId = getCellByHeader(row, headerIndex, SPACE_ID_COLUMN_NAME);
+
+        if (isCompletelyBlankRow(row, normalizedHeaders.length)) {
+          issues.push(makeIssue("Warning", "Completely blank row", sheetName, excelRowNumber, "", "", `Row ${excelRowNumber} is completely blank.`, "Remove blank rows from the upload area."));
+          continue;
+        }
+
+        issues.push(...checkMandatoryFields(row, headerIndex, sheetName, excelRowNumber, spaceId, headerConfig));
+        issues.push(...checkWhitespace(row, normalizedHeaders, sheetName, excelRowNumber, spaceId));
+        issues.push(...checkFieldValues(row, headerIndex, sheetName, excelRowNumber, spaceId, headerConfig));
+      }
+
+      issues.push(...checkDuplicateSpaceIds(rows, headerIndex, sheetName));
+      return issues;
+    }
+
+    function getTargetSheetName(workbook, requestedSheetName) {
+      if (requestedSheetName) {
+        return workbook.SheetNames.includes(requestedSheetName) ? requestedSheetName : "";
+      }
+      return workbook.SheetNames[0] || "";
+    }
+
+    function checkHiddenSheets(workbook) {
+      const issues = [];
+      const sheetMetadata = workbook.Workbook && workbook.Workbook.Sheets ? workbook.Workbook.Sheets : [];
+
+      sheetMetadata.forEach((sheet) => {
+        if (sheet.Hidden) {
+          const hiddenType = sheet.Hidden === 2 ? "very hidden" : "hidden";
+          issues.push(makeIssue("Warning", "Hidden sheet", sheet.name || "", "", "", "", `Worksheet "${sheet.name}" is ${hiddenType}.`, "Confirm hidden sheets are intentional and that the upload data is on the expected worksheet."));
+        }
+      });
+
+      return issues;
+    }
+
+    function checkMergedCells(merges, sheetName, headers) {
+      return merges.map((merge) => {
+        const range = XLSX.utils.encode_range(merge);
+        const rowNumber = merge.s.r + 1;
+        const columnName = headers[merge.s.c] || XLSX.utils.encode_col(merge.s.c);
+        return makeIssue("Error", "Merged cells", sheetName, rowNumber, columnName, "", `Merged cell range ${range} was found.`, "Unmerge the cells and repeat values where needed.");
+      });
+    }
+
+    function checkDuplicateHeaders(headerRow, sheetName) {
+      const issues = [];
+      const seen = new Map();
+
+      headerRow.forEach((header, index) => {
+        const normalized = normalizeHeader(header);
+        if (!normalized) return;
+
+        if (!seen.has(normalized)) {
+          seen.set(normalized, [index]);
+          return;
+        }
+
+        seen.get(normalized).push(index);
+      });
+
+      seen.forEach((indexes, header) => {
+        if (indexes.length > 1) {
+          const columns = indexes.map((index) => XLSX.utils.encode_col(index)).join(", ");
+          issues.push(makeIssue("Error", "Duplicate column headers", sheetName, 1, header, "", `Column header "${header}" appears more than once in columns ${columns}.`, "Rename or remove duplicate headers so each column name is unique."));
+        }
+      });
+
+      return issues;
+    }
+
+    function checkColumns(headers, sheetName, headerConfig) {
+      const issues = [];
+      const present = new Set(headers.filter(Boolean));
+      const allowed = new Set(headerConfig.headers);
+
+      getRequiredHeaders(headerConfig).forEach((requiredColumn) => {
+        if (!present.has(requiredColumn)) {
+          issues.push(makeIssue("Error", "Missing required column", sheetName, 1, requiredColumn, "", `Required column "${requiredColumn}" is missing.`, "Add the required column using the exact header name."));
+        }
+      });
+
+      present.forEach((header) => {
+        if (!allowed.has(header)) {
+          issues.push(makeIssue("Error", "Unexpected column header", sheetName, 1, header, "", `Column "${header}" is not listed in the header config.`, "Remove the column or add the exact header name to the config file if it is allowed."));
+        }
+      });
+
+      return issues;
+    }
+
+    function checkHeaderConfig(headerConfig) {
+      const issues = [];
+
+      headerConfig.duplicates.forEach((header) => {
+        issues.push(makeIssue("Warning", "Duplicate header in config", "", "", header, "", `Header "${header}" appears more than once in the config file.`, "Keep one line per allowed column header in the config file."));
+      });
+
+      REQUIRED_COLUMN_NAMES.forEach((requiredColumn) => {
+        if (!headerConfig.headers.includes(requiredColumn)) {
+          issues.push(makeIssue("Error", "Required header missing from config", "", "", requiredColumn, "", `Required column "${requiredColumn}" is not listed in the header config.`, "Add the required column header to the config file."));
+        }
+      });
+
+      headerConfig.configIssues.forEach((issue) => {
+        issues.push(issue);
+      });
+
+      return issues;
+    }
+
+    function checkMandatoryFields(row, headerIndex, sheetName, rowNumber, spaceId, headerConfig) {
+      const issues = [];
+
+      getRequiredHeaders(headerConfig).forEach((fieldName) => {
+        const value = getCellByHeader(row, headerIndex, fieldName);
+        if (isBlank(value)) {
+          issues.push(makeIssue("Error", "Blank mandatory field", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" is blank.`, "Enter a value in this mandatory field."));
+        }
+      });
+
+      return issues;
+    }
+
+    function checkDuplicateSpaceIds(rows, headerIndex, sheetName) {
+      const issues = [];
+      const seen = new Map();
+      const spaceIdIndex = headerIndex[SPACE_ID_COLUMN_NAME];
+
+      if (spaceIdIndex === undefined) return issues;
+
+      for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+        const row = rows[rowIndex] || [];
+        if (isCompletelyBlankRow(row, Object.keys(headerIndex).length)) continue;
+
+        const rawValue = row[spaceIdIndex];
+        const spaceId = normalizeValue(rawValue);
+        if (!spaceId) continue;
+
+        if (!seen.has(spaceId)) {
+          seen.set(spaceId, []);
+        }
+        seen.get(spaceId).push(rowIndex + 1);
+      }
+
+      seen.forEach((rowNumbers, spaceId) => {
+        if (rowNumbers.length > 1) {
+          rowNumbers.forEach((rowNumber) => {
+            issues.push(makeIssue("Error", "Duplicate GUID", sheetName, rowNumber, SPACE_ID_COLUMN_NAME, spaceId, `GUID "${spaceId}" appears on multiple rows: ${rowNumbers.join(", ")}.`, "Keep one row per GUID or correct the duplicate identifier."));
+          });
+        }
+      });
+
+      return issues;
+    }
+
+    function checkWhitespace(row, headers, sheetName, rowNumber, spaceId) {
+      const issues = [];
+
+      headers.forEach((header, index) => {
+        if (!header) return;
+        const value = row[index];
+        if (typeof value !== "string") return;
+        if (value.length > 0 && value !== value.trim()) {
+          issues.push(makeIssue("Warning", "Leading or trailing spaces", sheetName, rowNumber, header, spaceId, `"${header}" has leading or trailing spaces.`, "Remove extra spaces before or after the value."));
+        }
+      });
+
+      return issues;
+    }
+
+    function checkFieldValues(row, headerIndex, sheetName, rowNumber, spaceId, headerConfig) {
+      const issues = [];
+
+      Object.keys(headerConfig.fields).forEach((fieldName) => {
+        if (headerIndex[fieldName] === undefined) return;
+
+        const value = normalizeValue(getCellByHeader(row, headerIndex, fieldName));
+        if (!value) return;
+        const field = headerConfig.fields[fieldName];
+        const type = field.type || "text";
+
+        if (type === "list" && !field.options.includes(value)) {
+          issues.push(makeIssue("Error", "Invalid list value", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" contains "${value}", which is not allowed.`, `Use one of: ${field.options.join(", ")}.`));
+        }
+
+        if (type === "guid" && !isGuid(value)) {
+          issues.push(makeIssue("Error", "Invalid GUID", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" must contain a GUID.`, "Use a value in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx."));
+        }
+
+        if (type === "number" && !isNumberValue(value)) {
+          issues.push(makeIssue("Error", "Invalid number", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" must contain a number.`, "Enter a numeric value or leave the cell blank if it is optional."));
+        }
+
+        if (type === "integer" && !isIntegerValue(value)) {
+          issues.push(makeIssue("Error", "Invalid integer", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" must contain a whole number.`, "Enter a whole number or leave the cell blank if it is optional."));
+        }
+
+        if (type === "date" && !isDateValue(value)) {
+          issues.push(makeIssue("Error", "Invalid date", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" must contain a date.`, "Enter a recognisable date value or leave the cell blank if it is optional."));
+        }
+      });
+
+      return issues;
+    }
+
+    function checkFormulaCells(worksheet, sheetName, headers) {
+      const issues = [];
+      const range = worksheet["!ref"] ? XLSX.utils.decode_range(worksheet["!ref"]) : null;
+      if (!range) return issues;
+
+      for (let row = range.s.r; row <= range.e.r; row += 1) {
+        for (let col = range.s.c; col <= range.e.c; col += 1) {
+          const address = XLSX.utils.encode_cell({ r: row, c: col });
+          const cell = worksheet[address];
+          if (cell && cell.f) {
+            const rowNumber = row + 1;
+            const columnName = headers[col] || XLSX.utils.encode_col(col);
+            issues.push(makeIssue("Warning", "Formula cell", sheetName, rowNumber, columnName, "", `Cell ${address} contains a formula.`, "Replace formulas with their final values before sending the file."));
+          }
+        }
+      }
+
+      return issues;
+    }
+
+    function checkStrikethroughCells(worksheet, sheetName, headers, headerIndex, rows) {
+      const issues = [];
+      const range = worksheet["!ref"] ? XLSX.utils.decode_range(worksheet["!ref"]) : null;
+      if (!range) return issues;
+
+      for (let row = range.s.r; row <= range.e.r; row += 1) {
+        for (let col = range.s.c; col <= range.e.c; col += 1) {
+          const address = XLSX.utils.encode_cell({ r: row, c: col });
+          const cell = worksheet[address];
+
+          if (cell && hasStrikethroughStyle(cell)) {
+            const rowNumber = row + 1;
+            const columnName = headers[col] || XLSX.utils.encode_col(col);
+            const rowValues = rows[row] || [];
+            const spaceId = rowNumber > 1 ? getCellByHeader(rowValues, headerIndex, SPACE_ID_COLUMN_NAME) : "";
+            issues.push(makeIssue(STRIKETHROUGH_SEVERITY, "Strikethrough formatting", sheetName, rowNumber, columnName, spaceId, `Cell ${address} has strikethrough formatting.`, "Remove strikethrough formatting or confirm the value should be included in the upload."));
+          }
+        }
+      }
+
+      return issues;
+    }
+
+    function hasStrikethroughStyle(cell) {
+      const style = cell.s || {};
+      const font = style.font || {};
+      return Boolean(
+        font.strike ||
+        font.strikethrough ||
+        font.s ||
+        style.strike ||
+        style.strikethrough
+      );
+    }
+
+    function renderResults(issues, sheetName) {
+      const errors = issues.filter((issue) => issue.severity === "Error");
+      const warnings = issues.filter((issue) => issue.severity === "Warning");
+      const passed = errors.length === 0;
+
+      statusBadge.textContent = passed ? "Pass" : "Fail";
+      statusBadge.className = `status-badge ${passed ? "status-pass" : "status-fail"}`;
+      summaryText.textContent = buildSummaryText(errors.length, warnings.length, sheetName);
+      errorCount.textContent = String(errors.length);
+      warningCount.textContent = String(warnings.length);
+      issueCount.textContent = String(issues.length);
+      downloadButton.disabled = false;
+
+      renderIssueCards(errorsList, errors, "No errors found.");
+      renderIssueCards(warningsList, warnings, "No warnings found.");
+    }
+
+    function buildSummaryText(errors, warnings, sheetName) {
+      const sheetPart = sheetName ? ` Checked worksheet: "${sheetName}".` : "";
+      if (errors > 0) {
+        return `Fail: ${errors} error(s) must be fixed before the spreadsheet is sent.${warnings > 0 ? ` ${warnings} warning(s) also need review.` : ""}${sheetPart}`;
+      }
+      return `Pass: no errors found.${warnings > 0 ? ` Review ${warnings} warning(s) before sending.` : " No warnings found."}${sheetPart}`;
+    }
+
+    function renderIssueCards(container, issues, emptyText) {
+      container.innerHTML = "";
+
+      if (issues.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = emptyText;
+        container.appendChild(empty);
+        return;
+      }
+
+      issues.forEach((issue) => {
+        const card = document.createElement("div");
+        card.className = `issue-card ${issue.severity.toLowerCase()}`;
+
+        const title = document.createElement("strong");
+        title.textContent = formatIssueTitle(issue);
+
+        const detail = document.createElement("span");
+        detail.textContent = `${issue.message} Suggested fix: ${issue.suggestedFix}`;
+
+        card.appendChild(title);
+        card.appendChild(detail);
+        container.appendChild(card);
+      });
+    }
+
+    function formatIssueTitle(issue) {
+      const parts = [issue.checkName];
+      if (issue.sheetName) parts.push(`Sheet: ${issue.sheetName}`);
+      if (issue.rowNumber) parts.push(`Row: ${issue.rowNumber}`);
+      if (issue.columnName) parts.push(`Column: ${issue.columnName}`);
+      if (issue.spaceId) parts.push(`GUID: ${issue.spaceId}`);
+      return parts.join(" | ");
+    }
+
+    function downloadCsvReport() {
+      const headers = ["Severity", "Check name", "Sheet name", "Row number", "Column name", "GUID", "Message", "Suggested fix"];
+      const rows = latestIssues.length > 0
+        ? latestIssues.map((issue) => [issue.severity, issue.checkName, issue.sheetName, issue.rowNumber, issue.columnName, issue.spaceId, issue.message, issue.suggestedFix])
+        : [["Pass", "Validation summary", "", "", "", "", "No issues found.", "No action required."]];
+      const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "space-upload-pre-check-report.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function makeIssue(severity, checkName, sheetName, rowNumber, columnName, spaceId, message, suggestedFix) {
+      return {
+        severity,
+        checkName,
+        sheetName: sheetName || "",
+        rowNumber: rowNumber || "",
+        columnName: columnName || "",
+        spaceId: spaceId || "",
+        message,
+        suggestedFix
+      };
+    }
+
+    function buildHeaderIndex(headers) {
+      const index = {};
+      headers.forEach((header, position) => {
+        if (header && index[header] === undefined) {
+          index[header] = position;
+        }
+      });
+      return index;
+    }
+
+    function getCellByHeader(row, headerIndex, headerName) {
+      const index = headerIndex[headerName];
+      return index === undefined ? "" : row[index];
+    }
+
+    function normalizeHeader(value) {
+      return normalizeValue(value);
+    }
+
+    function normalizeValue(value) {
+      if (value === null || value === undefined) return "";
+      return String(value).trim();
+    }
+
+    function isBlank(value) {
+      return normalizeValue(value) === "";
+    }
+
+    function isCompletelyBlankRow(row, columnCount) {
+      const width = Math.max(columnCount, row.length);
+      for (let index = 0; index < width; index += 1) {
+        if (!isBlank(row[index])) return false;
+      }
+      return true;
+    }
+
+    function isXlsxFile(file) {
+      return /\.xlsx$/i.test(file.name || "");
+    }
+
+    function isTextFile(file) {
+      return /\.txt$/i.test(file.name || "");
+    }
+
+    function readTextFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(String(event.target.result || ""));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+      });
+    }
+
+    function createDefaultHeaderConfig() {
+      const fields = {};
+      DEFAULT_FIELD_CONFIGS.forEach((field) => {
+        const normalizedName = normalizeHeader(field.name);
+        fields[normalizedName] = {
+          name: normalizedName,
+          type: normalizeFieldType(field.type),
+          options: field.options || [],
+          required: Boolean(field.required)
+        };
+      });
+
+      return {
+        headers: DEFAULT_VALID_COLUMN_HEADERS.map((header) => normalizeHeader(header)).filter(Boolean),
+        duplicates: [],
+        fields,
+        configIssues: []
+      };
+    }
+
+    function parseHeaderConfig(text) {
+      const headers = [];
+      const duplicates = [];
+      const fields = {};
+      const configIssues = [];
+      const seen = new Set();
+
+      text.split(/\r?\n/).forEach((line, index) => {
+        const parsed = parseHeaderConfigLine(line);
+        if (!parsed) return;
+        const header = parsed.name;
+        if (!header || header.startsWith("#")) return;
+
+        if (seen.has(header)) {
+          duplicates.push(header);
+          return;
+        }
+
+        seen.add(header);
+        headers.push(header);
+        fields[header] = parsed;
+
+        if (!isSupportedFieldType(parsed.type)) {
+          configIssues.push(makeIssue("Error", "Unsupported field type", "", index + 1, header, "", `Config line ${index + 1} uses unsupported type "${parsed.type}".`, `Use one of: ${getSupportedFieldTypes().join(", ")}.`));
+        }
+
+        if (parsed.type === "list" && parsed.options.length === 0) {
+          configIssues.push(makeIssue("Error", "Missing list options", "", index + 1, header, "", `Config line ${index + 1} sets "${header}" as a list but does not provide options.`, "Add options separated by semicolons, for example: options=Office; Meeting Room."));
+        }
+      });
+
+      return { headers, duplicates, fields, configIssues };
+    }
+
+    function parseHeaderConfigLine(line) {
+      const trimmed = normalizeValue(line);
+      if (!trimmed || trimmed.startsWith("#")) return null;
+
+      const parts = trimmed.split("|").map((part) => part.trim()).filter(Boolean);
+      const name = normalizeHeader(parts[0]);
+      const field = {
+        name,
+        type: "text",
+        options: [],
+        required: REQUIRED_COLUMN_NAMES.includes(name)
+      };
+
+      parts.slice(1).forEach((part) => {
+        const separatorIndex = part.indexOf("=");
+        if (separatorIndex === -1) {
+          field.options.push(...part.split(";").map((option) => normalizeValue(option)).filter(Boolean));
+          return;
+        }
+
+        const key = normalizeValue(part.slice(0, separatorIndex)).toLowerCase();
+        const value = normalizeValue(part.slice(separatorIndex + 1));
+
+        if (key === "type") {
+          field.type = normalizeFieldType(value);
+        }
+
+        if (key === "options") {
+          field.options.push(...value.split(";").map((option) => normalizeValue(option)).filter(Boolean));
+        }
+
+        if (key === "required") {
+          field.required = ["true", "yes", "y", "1"].includes(value.toLowerCase());
+        }
+      });
+
+      if (field.options.length > 0 && field.type === "text") {
+        field.type = "list";
+      }
+
+      return field;
+    }
+
+    function getRequiredHeaders(headerConfig) {
+      const requiredFromConfig = Object.values(headerConfig.fields || {})
+        .filter((field) => field.required)
+        .map((field) => field.name);
+      return requiredFromConfig.length > 0 ? requiredFromConfig : REQUIRED_COLUMN_NAMES;
+    }
+
+    function normalizeFieldType(value) {
+      return normalizeValue(value || "text").toLowerCase();
+    }
+
+    function getSupportedFieldTypes() {
+      return ["text", "list", "guid", "number", "integer", "date"];
+    }
+
+    function isSupportedFieldType(type) {
+      return getSupportedFieldTypes().includes(type);
+    }
+
+    function isGuid(value) {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    }
+
+    function isNumberValue(value) {
+      return /^-?\d+(\.\d+)?$/.test(String(value).replace(/,/g, ""));
+    }
+
+    function isIntegerValue(value) {
+      return /^-?\d+$/.test(String(value).replace(/,/g, ""));
+    }
+
+    function isDateValue(value) {
+      const timestamp = Date.parse(value);
+      return Number.isFinite(timestamp);
+    }
+
+    function csvEscape(value) {
+      const text = String(value === undefined || value === null ? "" : value);
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+  </script>
+</body>
+</html>
