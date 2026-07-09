@@ -251,6 +251,64 @@
       gap: 8px;
     }
 
+    .issue-group {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fffaf3;
+      overflow: hidden;
+    }
+
+    .issue-group summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-weight: 800;
+      list-style: none;
+    }
+
+    .issue-group summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .issue-group summary::after {
+      content: "Show";
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .issue-group[open] summary::after {
+      content: "Hide";
+    }
+
+    .issue-group.error summary {
+      color: var(--fail-text);
+      background: var(--fail-bg);
+    }
+
+    .issue-group.warning summary {
+      color: var(--warn-text);
+      background: var(--warn-bg);
+    }
+
+    .issue-group-count {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .issue-group-items {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid var(--border);
+    }
+
     .issue-card {
       border-left: 5px solid var(--border);
       border-radius: 6px;
@@ -308,6 +366,66 @@
       display: none;
     }
 
+    .invalid-value-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .invalid-value-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: rgba(255, 250, 243, 0.72);
+    }
+
+    .invalid-value-row span {
+      margin: 0;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .accept-value-button {
+      width: auto;
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #fffaf3;
+      color: var(--ink);
+      border-color: var(--border);
+    }
+
+    .accept-value-button.selected {
+      background: var(--sage);
+      border-color: var(--sage);
+      color: #122031;
+    }
+
+    .config-output-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    textarea.output-box {
+      min-height: 120px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      background: #fffaf3;
+    }
+
+    .panel[hidden] {
+      display: none;
+    }
+
     .small-note {
       margin: 10px 0 0;
       color: var(--muted);
@@ -331,7 +449,8 @@
       }
 
       .upload-row,
-      .summary {
+      .summary,
+      .config-output-grid {
         grid-template-columns: 1fr;
       }
 
@@ -401,6 +520,25 @@
       </div>
     </section>
 
+    <section id="configBuilderPanel" class="panel" aria-labelledby="config-builder-title" hidden>
+      <div class="section-title">
+        <h2 id="config-builder-title">Config Update Builder</h2>
+      </div>
+      <p class="small-note" id="configBuilderNote">Select invalid list values to generate config updates.</p>
+      <div class="config-output-grid">
+        <div>
+          <label for="acceptedValuesOutput">Accepted values to add</label>
+          <textarea id="acceptedValuesOutput" class="output-box" readonly>No values selected yet.</textarea>
+          <button id="copyAcceptedValuesButton" class="secondary" type="button" disabled>Copy accepted values</button>
+        </div>
+        <div>
+          <label for="replacementConfigOutput">Replacement config line(s)</label>
+          <textarea id="replacementConfigOutput" class="output-box" readonly>No config updates generated yet.</textarea>
+          <button id="copyReplacementConfigButton" class="secondary" type="button" disabled>Copy config lines</button>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" aria-labelledby="warnings-title">
       <div class="section-title">
         <h2 id="warnings-title">Warnings To Review</h2>
@@ -463,8 +601,15 @@
     const issueCount = document.getElementById("issueCount");
     const errorsList = document.getElementById("errorsList");
     const warningsList = document.getElementById("warningsList");
+    const configBuilderPanel = document.getElementById("configBuilderPanel");
+    const configBuilderNote = document.getElementById("configBuilderNote");
+    const acceptedValuesOutput = document.getElementById("acceptedValuesOutput");
+    const replacementConfigOutput = document.getElementById("replacementConfigOutput");
+    const copyAcceptedValuesButton = document.getElementById("copyAcceptedValuesButton");
+    const copyReplacementConfigButton = document.getElementById("copyReplacementConfigButton");
 
     let latestIssues = [];
+    let acceptedListSelections = {};
 
     sheetNameInput.value = DEFAULT_WORKSHEET_NAME;
 
@@ -480,12 +625,16 @@
 
     runButton.addEventListener("click", runChecks);
     downloadButton.addEventListener("click", downloadCsvReport);
+    copyAcceptedValuesButton.addEventListener("click", () => copyOutputText(acceptedValuesOutput, copyAcceptedValuesButton, "Copy accepted values"));
+    copyReplacementConfigButton.addEventListener("click", () => copyOutputText(replacementConfigOutput, copyReplacementConfigButton, "Copy config lines"));
 
     async function runChecks() {
       const file = fileInput.files[0];
       const configFile = configInput.files[0];
       const requestedSheetName = normalizeValue(sheetNameInput.value);
       latestIssues = [];
+      acceptedListSelections = {};
+      updateConfigBuilder();
 
       if (!file) {
         latestIssues.push(makeIssue("Error", "No file selected", "", "", "", "", "No Excel file has been selected.", "Choose a .xlsx file, then run the checks again."));
@@ -848,6 +997,8 @@
           `"${field.name}" contains ${values.length} invalid ${uniqueLabel} across ${totalInvalidCells} ${cellLabel}: ${valueSummary}.${rowPart}`,
           "Correct the listed values or update the config file if they should be allowed.",
           {
+            fieldType: field.type,
+            fieldRequired: Boolean(field.required),
             acceptableValues: field.options,
             invalidValues: values.map((item) => ({
               value: item.value,
@@ -953,54 +1104,259 @@
         return;
       }
 
-      issues.forEach((issue) => {
-        const card = document.createElement("div");
-        card.className = `issue-card ${issue.severity.toLowerCase()}`;
+      const groups = groupIssuesByCheckName(issues);
 
-        const title = document.createElement("strong");
-        title.textContent = formatIssueTitle(issue);
+      groups.forEach((group) => {
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        const count = document.createElement("span");
+        const items = document.createElement("div");
 
-        const detail = document.createElement("span");
-        detail.textContent = `${issue.message} Suggested fix: ${issue.suggestedFix}`;
+        details.className = `issue-group ${group.severity.toLowerCase()}`;
+        details.open = groups.length === 1;
+        summary.textContent = group.checkName;
+        count.className = "issue-group-count";
+        count.textContent = `${group.issues.length} ${group.issues.length === 1 ? "issue" : "issues"}`;
+        items.className = "issue-group-items";
 
-        card.appendChild(title);
-        card.appendChild(detail);
+        summary.appendChild(count);
+        group.issues.forEach((issue) => {
+          items.appendChild(renderIssueCard(issue));
+        });
 
-        if (issue.acceptableValues && issue.acceptableValues.length > 0) {
-          const toggle = document.createElement("button");
-          const extra = document.createElement("div");
-
-          toggle.type = "button";
-          toggle.className = "issue-toggle";
-          toggle.textContent = "Show acceptable values";
-          toggle.setAttribute("aria-expanded", "false");
-
-          extra.className = "issue-extra";
-          extra.hidden = true;
-          extra.textContent = issue.acceptableValues.join(", ");
-
-          toggle.addEventListener("click", () => {
-            const isHidden = extra.hidden;
-            extra.hidden = !isHidden;
-            toggle.textContent = isHidden ? "Hide acceptable values" : "Show acceptable values";
-            toggle.setAttribute("aria-expanded", String(isHidden));
-          });
-
-          card.appendChild(toggle);
-          card.appendChild(extra);
-        }
-
-        container.appendChild(card);
+        details.appendChild(summary);
+        details.appendChild(items);
+        container.appendChild(details);
       });
     }
 
+    function groupIssuesByCheckName(issues) {
+      const groups = [];
+      const byName = new Map();
+
+      issues.forEach((issue) => {
+        const key = issue.checkName || "Other issues";
+        if (!byName.has(key)) {
+          const group = {
+            checkName: key,
+            severity: issue.severity,
+            issues: []
+          };
+          byName.set(key, group);
+          groups.push(group);
+        }
+        byName.get(key).issues.push(issue);
+      });
+
+      return groups;
+    }
+
+    function renderIssueCard(issue) {
+      const card = document.createElement("div");
+      card.className = `issue-card ${issue.severity.toLowerCase()}`;
+
+      const title = document.createElement("strong");
+      title.textContent = formatIssueTitle(issue);
+
+      const detail = document.createElement("span");
+      detail.textContent = issue.message;
+
+      card.appendChild(title);
+      card.appendChild(detail);
+
+      if (issue.invalidValues && issue.invalidValues.length > 0) {
+        card.appendChild(renderInvalidValueActions(issue));
+      }
+
+      if (issue.acceptableValues && issue.acceptableValues.length > 0) {
+        const toggle = document.createElement("button");
+        const extra = document.createElement("div");
+
+        toggle.type = "button";
+        toggle.className = "issue-toggle";
+        toggle.textContent = "Show acceptable values";
+        toggle.setAttribute("aria-expanded", "false");
+
+        extra.className = "issue-extra";
+        extra.hidden = true;
+        extra.textContent = issue.acceptableValues.join(", ");
+
+        toggle.addEventListener("click", () => {
+          const isHidden = extra.hidden;
+          extra.hidden = !isHidden;
+          toggle.textContent = isHidden ? "Hide acceptable values" : "Show acceptable values";
+          toggle.setAttribute("aria-expanded", String(isHidden));
+        });
+
+        card.appendChild(toggle);
+        card.appendChild(extra);
+      }
+
+      return card;
+    }
+
+    function renderInvalidValueActions(issue) {
+      const list = document.createElement("div");
+      list.className = "invalid-value-list";
+
+      issue.invalidValues.forEach((item) => {
+        const row = document.createElement("div");
+        const label = document.createElement("span");
+        const button = document.createElement("button");
+        const countLabel = item.count === 1 ? "time" : "times";
+
+        row.className = "invalid-value-row";
+        label.textContent = `"${item.value}" used ${item.count} ${countLabel}`;
+        button.type = "button";
+        button.className = "accept-value-button";
+
+        updateAcceptValueButton(button, issue.columnName, item.value);
+        button.addEventListener("click", () => {
+          toggleAcceptedValue(issue, item.value);
+          updateAcceptValueButton(button, issue.columnName, item.value);
+          updateConfigBuilder();
+        });
+
+        row.appendChild(label);
+        row.appendChild(button);
+        list.appendChild(row);
+      });
+
+      return list;
+    }
+
+    function toggleAcceptedValue(issue, value) {
+      const fieldName = issue.columnName;
+      if (!acceptedListSelections[fieldName]) {
+        acceptedListSelections[fieldName] = {
+          issue,
+          values: new Set()
+        };
+      }
+
+      const fieldSelection = acceptedListSelections[fieldName];
+      fieldSelection.issue = issue;
+
+      if (fieldSelection.values.has(value)) {
+        fieldSelection.values.delete(value);
+      } else {
+        fieldSelection.values.add(value);
+      }
+
+      if (fieldSelection.values.size === 0) {
+        delete acceptedListSelections[fieldName];
+      }
+    }
+
+    function updateAcceptValueButton(button, fieldName, value) {
+      const isSelected = Boolean(acceptedListSelections[fieldName] && acceptedListSelections[fieldName].values.has(value));
+      button.textContent = isSelected ? "Remove" : "Accept value";
+      button.classList.toggle("selected", isSelected);
+      button.setAttribute("aria-pressed", String(isSelected));
+    }
+
+    function updateConfigBuilder() {
+      const selections = getAcceptedValueSelections();
+      const hasSelections = selections.length > 0;
+
+      configBuilderPanel.hidden = !hasSelections;
+      configBuilderNote.textContent = hasSelections
+        ? "Copy the selected values for review, or replace the matching config line with the generated line."
+        : "Select invalid list values to generate config updates.";
+      acceptedValuesOutput.value = hasSelections ? buildAcceptedValuesText(selections) : "No values selected yet.";
+      replacementConfigOutput.value = hasSelections ? buildReplacementConfigText(selections) : "No config updates generated yet.";
+      copyAcceptedValuesButton.disabled = !hasSelections;
+      copyReplacementConfigButton.disabled = !hasSelections;
+    }
+
+    function getAcceptedValueSelections() {
+      return Object.keys(acceptedListSelections)
+        .sort((a, b) => a.localeCompare(b))
+        .map((fieldName) => {
+          const fieldSelection = acceptedListSelections[fieldName];
+          return {
+            fieldName,
+            issue: fieldSelection.issue,
+            values: Array.from(fieldSelection.values).sort((a, b) => a.localeCompare(b))
+          };
+        })
+        .filter((selection) => selection.values.length > 0);
+    }
+
+    function buildAcceptedValuesText(selections) {
+      return selections.map((selection) => {
+        const lines = [`${selection.fieldName}:`];
+        selection.values.forEach((value) => lines.push(value));
+        return lines.join("\n");
+      }).join("\n\n");
+    }
+
+    function buildReplacementConfigText(selections) {
+      return selections.map((selection) => buildReplacementConfigLine(selection.issue, selection.values)).join("\n");
+    }
+
+    function buildReplacementConfigLine(issue, selectedValues) {
+      const allOptions = mergeUniqueValues(issue.acceptableValues || [], selectedValues);
+      const parts = [
+        issue.columnName,
+        `type=${issue.fieldType || "list"}`,
+        `options=${allOptions.join("; ")}`
+      ];
+
+      if (issue.fieldRequired) {
+        parts.splice(2, 0, "required=true");
+      }
+
+      return parts.join(" | ");
+    }
+
+    function mergeUniqueValues(existingValues, newValues) {
+      const merged = [];
+      const seen = new Set();
+
+      existingValues.concat(newValues).forEach((value) => {
+        const normalized = normalizeValue(value);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        merged.push(normalized);
+      });
+
+      return merged;
+    }
+
+    async function copyOutputText(textarea, button, defaultLabel) {
+      const text = textarea.value;
+      if (!text || textarea.disabled) return;
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          textarea.focus();
+          textarea.select();
+          document.execCommand("copy");
+        }
+        button.textContent = "Copied";
+        setTimeout(() => {
+          button.textContent = defaultLabel;
+        }, 1400);
+      } catch (error) {
+        textarea.focus();
+        textarea.select();
+        button.textContent = "Select and copy";
+        setTimeout(() => {
+          button.textContent = defaultLabel;
+        }, 2000);
+      }
+    }
+
     function formatIssueTitle(issue) {
-      const parts = [issue.checkName];
-      if (issue.sheetName) parts.push(`Sheet: ${issue.sheetName}`);
+      const parts = [];
       if (issue.rowNumber) parts.push(`Row: ${issue.rowNumber}`);
       if (issue.columnName) parts.push(`Column: ${issue.columnName}`);
       if (issue.spaceId) parts.push(`GUID: ${issue.spaceId}`);
-      return parts.join(" | ");
+      if (parts.length === 0 && issue.sheetName) parts.push(`Sheet: ${issue.sheetName}`);
+      return parts.length > 0 ? parts.join(" | ") : "Details";
     }
 
     function downloadCsvReport() {
