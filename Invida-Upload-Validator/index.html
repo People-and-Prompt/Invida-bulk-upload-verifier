@@ -282,6 +282,32 @@
       font-size: 13px;
     }
 
+    .issue-toggle {
+      width: auto;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #fffaf3;
+      color: var(--ink);
+      border-color: var(--border);
+    }
+
+    .issue-extra {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: rgba(255, 250, 243, 0.72);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .issue-extra[hidden] {
+      display: none;
+    }
+
     .small-note {
       margin: 10px 0 0;
       color: var(--muted);
@@ -541,6 +567,7 @@
       const headerRow = rows[0] || [];
       const normalizedHeaders = headerRow.map((value) => normalizeHeader(value));
       const headerIndex = buildHeaderIndex(normalizedHeaders);
+      const listIssueAccumulator = createListIssueAccumulator(headerConfig);
 
       issues.push(...checkMergedCells(merges, sheetName, normalizedHeaders));
       issues.push(...checkDuplicateHeaders(headerRow, sheetName));
@@ -560,9 +587,10 @@
 
         issues.push(...checkMandatoryFields(row, headerIndex, sheetName, excelRowNumber, spaceId, headerConfig));
         issues.push(...checkWhitespace(row, normalizedHeaders, sheetName, excelRowNumber, spaceId));
-        issues.push(...checkFieldValues(row, headerIndex, sheetName, excelRowNumber, spaceId, headerConfig));
+        issues.push(...checkFieldValues(row, headerIndex, sheetName, excelRowNumber, spaceId, headerConfig, listIssueAccumulator));
       }
 
+      issues.push(...buildAggregatedListIssues(listIssueAccumulator, sheetName));
       issues.push(...checkDuplicateSpaceIds(rows, headerIndex, sheetName));
       return issues;
     }
@@ -723,7 +751,7 @@
       return issues;
     }
 
-    function checkFieldValues(row, headerIndex, sheetName, rowNumber, spaceId, headerConfig) {
+    function checkFieldValues(row, headerIndex, sheetName, rowNumber, spaceId, headerConfig, listIssueAccumulator) {
       const issues = [];
 
       Object.keys(headerConfig.fields).forEach((fieldName) => {
@@ -735,7 +763,8 @@
         const type = field.type || "text";
 
         if (type === "list" && !field.options.includes(value)) {
-          issues.push(makeIssue("Error", "Invalid list value", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" contains "${value}", which is not allowed.`, `Use one of: ${field.options.join(", ")}.`));
+          recordInvalidListValue(listIssueAccumulator, fieldName, value, rowNumber, spaceId);
+          return;
         }
 
         if (type === "guid" && !isGuid(value)) {
@@ -753,6 +782,81 @@
         if (type === "date" && !isDateValue(value)) {
           issues.push(makeIssue("Error", "Invalid date", sheetName, rowNumber, fieldName, spaceId, `"${fieldName}" must contain a date.`, "Enter a recognisable date value or leave the cell blank if it is optional."));
         }
+      });
+
+      return issues;
+    }
+
+    function createListIssueAccumulator(headerConfig) {
+      const accumulator = {};
+
+      Object.values(headerConfig.fields).forEach((field) => {
+        if (field.type === "list" && Array.isArray(field.options) && field.options.length > 0) {
+          accumulator[field.name] = {
+            field,
+            invalidValues: new Map()
+          };
+        }
+      });
+
+      return accumulator;
+    }
+
+    function recordInvalidListValue(accumulator, fieldName, value, rowNumber, spaceId) {
+      const fieldBucket = accumulator[fieldName];
+      if (!fieldBucket) return;
+
+      if (!fieldBucket.invalidValues.has(value)) {
+        fieldBucket.invalidValues.set(value, {
+          value,
+          count: 0,
+          rows: [],
+          spaceIds: new Set()
+        });
+      }
+
+      const valueBucket = fieldBucket.invalidValues.get(value);
+      valueBucket.count += 1;
+      if (valueBucket.rows.length < 12) valueBucket.rows.push(rowNumber);
+      if (spaceId) valueBucket.spaceIds.add(spaceId);
+    }
+
+    function buildAggregatedListIssues(accumulator, sheetName) {
+      const issues = [];
+
+      Object.values(accumulator).forEach(({ field, invalidValues }) => {
+        if (invalidValues.size === 0) return;
+
+        const values = Array.from(invalidValues.values()).sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return a.value.localeCompare(b.value);
+        });
+        const totalInvalidCells = values.reduce((total, item) => total + item.count, 0);
+        const valueSummary = values.map((item) => `"${item.value}" (${item.count})`).join(", ");
+        const exampleRows = Array.from(new Set(values.flatMap((item) => item.rows))).slice(0, 12);
+        const rowPart = exampleRows.length > 0 ? ` Example row(s): ${exampleRows.join(", ")}.` : "";
+        const uniqueLabel = values.length === 1 ? "value" : "values";
+        const cellLabel = totalInvalidCells === 1 ? "cell" : "cells";
+
+        issues.push(makeIssue(
+          "Error",
+          "Invalid list values",
+          sheetName,
+          "",
+          field.name,
+          "",
+          `"${field.name}" contains ${values.length} invalid ${uniqueLabel} across ${totalInvalidCells} ${cellLabel}: ${valueSummary}.${rowPart}`,
+          "Correct the listed values or update the config file if they should be allowed.",
+          {
+            acceptableValues: field.options,
+            invalidValues: values.map((item) => ({
+              value: item.value,
+              count: item.count,
+              rows: item.rows,
+              spaceIds: Array.from(item.spaceIds)
+            }))
+          }
+        ));
       });
 
       return issues;
@@ -861,6 +965,31 @@
 
         card.appendChild(title);
         card.appendChild(detail);
+
+        if (issue.acceptableValues && issue.acceptableValues.length > 0) {
+          const toggle = document.createElement("button");
+          const extra = document.createElement("div");
+
+          toggle.type = "button";
+          toggle.className = "issue-toggle";
+          toggle.textContent = "Show acceptable values";
+          toggle.setAttribute("aria-expanded", "false");
+
+          extra.className = "issue-extra";
+          extra.hidden = true;
+          extra.textContent = issue.acceptableValues.join(", ");
+
+          toggle.addEventListener("click", () => {
+            const isHidden = extra.hidden;
+            extra.hidden = !isHidden;
+            toggle.textContent = isHidden ? "Hide acceptable values" : "Show acceptable values";
+            toggle.setAttribute("aria-expanded", String(isHidden));
+          });
+
+          card.appendChild(toggle);
+          card.appendChild(extra);
+        }
+
         container.appendChild(card);
       });
     }
@@ -892,7 +1021,7 @@
       URL.revokeObjectURL(url);
     }
 
-    function makeIssue(severity, checkName, sheetName, rowNumber, columnName, spaceId, message, suggestedFix) {
+    function makeIssue(severity, checkName, sheetName, rowNumber, columnName, spaceId, message, suggestedFix, extra = {}) {
       return {
         severity,
         checkName,
@@ -901,7 +1030,8 @@
         columnName: columnName || "",
         spaceId: spaceId || "",
         message,
-        suggestedFix
+        suggestedFix,
+        ...extra
       };
     }
 
